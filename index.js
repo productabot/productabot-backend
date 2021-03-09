@@ -11,14 +11,7 @@ exports.handler = async(event, context) => {
     console.log("productabot init");
     console.log(event);
 
-    if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
-        let pool = new Pool(poolConfig);
-        let response = await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], event.request.userAttributes['custom:userType']]);
-        console.log(response);
-        pool.end();
-        return context.done(null, event);
-    }
-    else if (['TokenGeneration_Authentication', 'TokenGeneration_RefreshTokens'].includes(event.triggerSource)) {
+    if (['TokenGeneration_Authentication', 'TokenGeneration_RefreshTokens'].includes(event.triggerSource)) {
         event.response = {
             "claimsOverrideDetails": {
                 "claimsToAddOrOverride": {
@@ -32,5 +25,47 @@ exports.handler = async(event, context) => {
             }
         };
         return context.done(null, event);
+    }
+    else if (event.triggerSource === 'CustomMessage_SignUp') {
+        event.response.emailSubject = `Confirm your registration, ${event.request.userAttributes['custom:username']}!`;
+        event.response.emailMessage = `Hey!<p><a id="confirmLink" href="https://app.productabot.com/login?username=${event.userName}&code=${event.request.codeParameter}">Click this link to complete your registration.</a><p>Thanks,<br>productabot<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`;
+        return context.done(null, event);
+    }
+    else if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
+        let pool = new Pool(poolConfig);
+        let response = await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], event.request.userAttributes['custom:userType']]);
+        console.log(response);
+        pool.end();
+        return context.done(null, event);
+    }
+    else if (event.path === '/test_send_email') {
+        const AWS = require('aws-sdk');
+        AWS.config.update({ region: 'us-east-1' });
+        let response = await new AWS.SES().sendEmail({
+            Destination: {
+                ToAddresses: [
+                    'chris@heythisischris.com',
+                ]
+            },
+            Message: {
+                Body: {
+                    Html: {
+                        Charset: "UTF-8",
+                        Data: "HTML_FORMAT_BODY"
+                    },
+                    Text: {
+                        Charset: "UTF-8",
+                        Data: "TEXT_FORMAT_BODY"
+                    }
+                },
+                Subject: {
+                    Charset: 'UTF-8',
+                    Data: 'Test email'
+                }
+            },
+            Source: 'noreply@productabot.com',
+            ReplyToAddresses: ['noreply@productabot.com', ],
+        }).promise();
+        console.log(response);
     }
 };
