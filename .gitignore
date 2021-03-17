@@ -106,3 +106,4 @@ dist
 .application.json
 lambda-payloads.json
 template.yaml
+submitTimesheet.js
